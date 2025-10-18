@@ -1,0 +1,14 @@
+{
+  "name": "zagl-idbot",
+  "version": "1.0.0",
+  "description": "بوت الزاجل و ID Bot يعمل على Render 24/7",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "express": "^4.21.1",
+    "dotenv": "^16.4.5"
+  }
+}
