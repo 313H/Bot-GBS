@@ -17,7 +17,7 @@ require("dotenv").config();
 
 const app = express();
 app.get("/", (req, res) => res.send("✅ البوت شغال 24/7 - By TSK"));
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 السيرفر شغال على بورت ${PORT}`));
 
 /* ================================================================================ */
