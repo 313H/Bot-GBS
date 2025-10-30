@@ -22,6 +22,12 @@ require("dotenv").config();
 const app = express();
 app.get("/", (req, res) => res.send("✅ البوت شغال 24/7 - By TSK"));
 app.listen(3000, () => console.log("🚀 السيرفر شغال على بورت 3000"));
+setInterval(() => {
+  fetch("https://hc-ping.com/96de4fd9-a4d2-4dd4-9bc8-f433807d4dc8")
+    .then(() => console.log("✅ Ping sent to Healthchecks"))
+    .catch(() => console.log("❌ Ping failed"));
+}, 1000 * 60 * 10); // كل 10 دقائق
+
 
 /* ================================================================================ */
 /* 🧩 القسم الأول: بوت IDs */
