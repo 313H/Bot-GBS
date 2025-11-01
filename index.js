@@ -1626,7 +1626,6 @@ clientTag.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-
 // ================================================================================
 // 📚 نظام طلبات الشرح (Explanation Requests) - نسخة معدلة ومطورة
 // ================================================================================
@@ -1978,10 +1977,7 @@ clientTag.on(Events.InteractionCreate, async (interaction) => {
                 roomName: roomName,
                 content: explanationContent,
                 requester: interaction.user,
-                timestamp: Date.now(),
-                originalCategoryId: categoryId, // حفظ القيم الأصلية
-                originalRoomName: roomName,
-                originalContent: explanationContent
+                timestamp: Date.now()
             });
 
             // إرسال طلب المراجعة إلى الروم المحدد في .env
@@ -2068,16 +2064,12 @@ clientTag.on(Events.InteractionCreate, async (interaction) => {
                 })
                 .setTimestamp();
 
-            // أزرار القبول والرفض والتعديل
+            // أزرار القبول والرفض
             const reviewButtons = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`explanation_approve_${requestId}`)
                     .setLabel('✅ قبول')
                     .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId(`explanation_approve_edit_${requestId}`)
-                    .setLabel('✏️ قبول مع تعديل')
-                    .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId(`explanation_reject_${requestId}`)
                     .setLabel('❌ رفض')
@@ -2120,82 +2112,165 @@ clientTag.on(Events.InteractionCreate, async (interaction) => {
 
     // معالجة قبول طلب الشرح
     if (interaction.isButton() && interaction.customId.startsWith('explanation_approve_')) {
-        // إذا كان زر القبول العادي (بدون تعديل)
-        if (!interaction.customId.includes('_edit_')) {
-            await handleApproveExplanation(interaction, false);
-            return;
-        }
-        
-        // إذا كان زر القبول مع تعديل
-        const requestId = interaction.customId.replace('explanation_approve_edit_', '');
-        const request = explanationRequests.get(requestId);
-        
-        if (!request) {
-            return await interaction.reply({ content: '❌ طلب الشرح غير موجود أو انتهت صلاحيته.', ephemeral: true });
-        }
-
-        // عرض نموذج التعديل
-        const modal = new ModalBuilder()
-            .setCustomId(`modal_edit_approve_${requestId}`)
-            .setTitle('✏️ قبول مع تعديل الطلب');
-
-        const categoryInput = new TextInputBuilder()
-            .setCustomId('edit_category_id')
-            .setLabel('آيدي الكاتجوري (عدل إذا لزم)')
-            .setPlaceholder(request.categoryId)
-            .setValue(request.categoryId)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-        const roomNameInput = new TextInputBuilder()
-            .setCustomId('edit_room_name')
-            .setLabel('اسم الروم الجديد (عدل إذا لزم)')
-            .setPlaceholder(request.roomName)
-            .setValue(request.roomName)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
-
-        const contentInput = new TextInputBuilder()
-            .setCustomId('edit_content')
-            .setLabel('محتوى الشرح (عدل إذا لزم)')
-            .setPlaceholder(request.content)
-            .setValue(request.content)
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(categoryInput),
-            new ActionRowBuilder().addComponents(roomNameInput),
-            new ActionRowBuilder().addComponents(contentInput)
-        );
-
-        await interaction.showModal(modal);
-        return;
-    }
-
-    // معالجة نموذج القبول مع التعديل
-    if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_edit_approve_')) {
         await interaction.deferReply({ ephemeral: true });
         
-        const requestId = interaction.customId.replace('modal_edit_approve_', '');
+        const requestId = interaction.customId.replace('explanation_approve_', '');
         const request = explanationRequests.get(requestId);
         
         if (!request) {
+            await sendExplanationLog(
+                "❌ طلب شرح غير موجود",
+                `حاول ${interaction.user.tag} قبول طلب شرح غير موجود`,
+                Colors.Red,
+                [
+                    { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
+                    { name: '📝 آيدي الطلب', value: requestId, inline: true }
+                ]
+            );
             return await interaction.editReply('❌ طلب الشرح غير موجود أو انتهت صلاحيته.');
         }
 
         try {
-            // تحديث البيانات بناءً على التعديلات
-            request.categoryId = interaction.fields.getTextInputValue('edit_category_id');
-            request.roomName = interaction.fields.getTextInputValue('edit_room_name');
-            request.content = interaction.fields.getTextInputValue('edit_content');
+            // إنشاء الروم مباشرة
+            const category = interaction.guild.channels.cache.get(request.categoryId);
+            if (!category) {
+                await sendExplanationLog(
+                    "❌ خطأ في قبول الطلب - كاتجوري غير موجود",
+                    `حاول ${interaction.user.tag} قبول طلب شرح بكاتجوري غير موجود`,
+                    Colors.Red,
+                    [
+                        { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
+                        { name: '👤 مقدم الطلب', value: `${request.requester.tag}`, inline: true }
+                    ]
+                );
+                return await interaction.editReply('❌ الكاتجوري لم يعد موجوداً!');
+            }
 
-            // المتابعة مع القبول بعد التعديل
-            await handleApproveExplanation(interaction, true, requestId);
-            
+            const createdChannel = await createExplanationRoom(
+                interaction, 
+                request.categoryId, 
+                request.roomName, 
+                request.content, 
+                request.requester
+            );
+
+            // إرسال رسالة القبول للمستخدم
+            const acceptEmbed = new EmbedBuilder()
+                .setTitle('✅ تم قبول طلب الشرح')
+                .setColor(Colors.Green)
+                .setDescription('تم قبول طلب الشرح الذي قدمته!')
+                .addFields(
+                    {
+                        name: '📁 الكاتجوري',
+                        value: `📁 ${category.name}`,
+                        inline: true
+                    },
+                    {
+                        name: '📝 روم الشرح',
+                        value: `${createdChannel}`,
+                        inline: true
+                    }
+                )
+                .addFields({
+                    name: '🎁 مكافأة',
+                    value: process.env.EXPLANATION_ROLE_ID ? 
+                        `تم منحك رول <@&${process.env.EXPLANATION_ROLE_ID}> 🎖️\nشكراً لمساهمتك في نشر المعرفة!` : 
+                        'شكراً لمساهمتك في نشر المعرفة! 🌟',
+                    inline: false
+                })
+                .setTimestamp();
+
+            try {
+                await request.requester.send({ embeds: [acceptEmbed] });
+            } catch (dmError) {
+                console.error('❌ فشل إرسال رسالة القبول للخاص:', dmError);
+                // يمكن إضافة رسالة في السيرفر كبديل
+            }
+
+            // تحديث رسالة الطلب الأصلية
+            const originalEmbed = interaction.message.embeds[0];
+            const approvedEmbed = new EmbedBuilder(originalEmbed)
+                .setColor(Colors.Green)
+                .setTitle('✅ تم قبول طلب الشرح')
+                .addFields(
+                    {
+                        name: '👨‍💼 تم القبول بواسطة',
+                        value: interaction.user.tag,
+                        inline: true
+                    },
+                    {
+                        name: '⏰ وقت القبول',
+                        value: `<t:${Math.floor(Date.now() / 1000)}:R>`,
+                        inline: true
+                    },
+                    {
+                        name: '📝 الروم المنشأ',
+                        value: `${createdChannel}`,
+                        inline: true
+                    }
+                );
+
+            await interaction.message.edit({ 
+                embeds: [approvedEmbed], 
+                components: [] 
+            });
+
+            // إرسال إشعار في الروم المحدد في .env إذا كان موجوداً
+            const notificationChannelId = process.env.EXPLANATION_NOTIFICATION_CHANNEL_ID;
+            if (notificationChannelId) {
+                const notificationChannel = interaction.guild.channels.cache.get(notificationChannelId);
+                if (notificationChannel) {
+                    const notificationEmbed = new EmbedBuilder()
+                        .setTitle('📚 تم نشر شرح جديد')
+                        .setColor(Colors.Green)
+                        .setDescription(`تم قبول ونشر شرح جديد بواسطة ${request.requester.tag}`)
+                        .addFields(
+                            {
+                                name: '📝 الروم',
+                                value: `${createdChannel}`,
+                                inline: true
+                            },
+                            {
+                                name: '👨‍💼 تمت المراجعة بواسطة',
+                                value: interaction.user.tag,
+                                inline: true
+                            }
+                        )
+                        .setTimestamp();
+
+                    await notificationChannel.send({ embeds: [notificationEmbed] });
+                }
+            }
+
+            await sendExplanationLog(
+                "✅ طلب شرح مقبول",
+                `تم قبول طلب شرح من ${request.requester.tag} بواسطة ${interaction.user.tag}`,
+                Colors.Green,
+                [
+                    { name: '👤 مقدم الطلب', value: `${request.requester.tag}`, inline: true },
+                    { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
+                    { name: '📝 الروم المنشأ', value: `${createdChannel}`, inline: true }
+                ]
+            );
+
+            await interaction.editReply('✅ تم قبول طلب الشرح بنجاح وإنشاء الروم وإعلام المستخدم.');
+
+            // حذف الطلب من التخزين المؤقت
+            explanationRequests.delete(requestId);
+
         } catch (error) {
-            console.error('❌ خطأ في معالجة القبول مع التعديل:', error);
-            await interaction.editReply('❌ حدث خطأ أثناء معالجة القبول مع التعديل.');
+            console.error('❌ خطأ في معالجة قبول الطلب:', error);
+            await sendExplanationLog(
+                "❌ خطأ في قبول طلب الشرح",
+                `حدث خطأ أثناء قبول طلب شرح من ${request.requester.tag}`,
+                Colors.Red,
+                [
+                    { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
+                    { name: '👤 مقدم الطلب', value: `${request.requester.tag}`, inline: true },
+                    { name: '📝 الخطأ', value: error.message, inline: true }
+                ]
+            );
+            await interaction.editReply('❌ حدث خطأ أثناء معالجة القبول. يرجى المحاولة مرة أخرى.');
         }
         return;
     }
@@ -2220,26 +2295,19 @@ clientTag.on(Events.InteractionCreate, async (interaction) => {
             return await interaction.editReply('❌ طلب الشرح غير موجود أو انتهت صلاحيته.');
         }
 
-        try {
-            const modal = new ModalBuilder()
-                .setCustomId(`modal_reject_reason_${requestId}`)
-                .setTitle('❌ إدخال سبب الرفض');
+        const modal = new ModalBuilder()
+            .setCustomId(`modal_reject_reason_${requestId}`)
+            .setTitle('❌ إدخال سبب الرفض');
 
-            const reasonInput = new TextInputBuilder()
-                .setCustomId('rejection_reason')
-                .setLabel('سبب الرفض')
-                .setPlaceholder('يرجى كتابة سبب الرفض بشكل واضح...')
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(true);
+        const reasonInput = new TextInputBuilder()
+            .setCustomId('rejection_reason')
+            .setLabel('سبب الرفض')
+            .setPlaceholder('يرجى كتابة سبب الرفض بشكل واضح...')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true);
 
-            modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
-            
-            await interaction.showModal(modal);
-            
-        } catch (error) {
-            console.error('❌ خطأ في بدء عملية الرفض:', error);
-            await interaction.editReply('❌ حدث خطأ أثناء بدء عملية الرفض.');
-        }
+        modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
+        await interaction.showModal(modal);
         return;
     }
 
@@ -2349,188 +2417,6 @@ clientTag.on(Events.InteractionCreate, async (interaction) => {
         return;
     }
 });
-
-// دالة منفصلة للتعامل مع القبول
-async function handleApproveExplanation(interaction, isEdited = false, requestId = null) {
-    try {
-        if (!requestId) {
-            requestId = interaction.customId.replace('explanation_approve_', '');
-        }
-        
-        const request = explanationRequests.get(requestId);
-        
-        if (!request) {
-            await sendExplanationLog(
-                "❌ طلب شرح غير موجود",
-                `حاول ${interaction.user.tag} قبول طلب شرح غير موجود`,
-                Colors.Red,
-                [
-                    { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
-                    { name: '📝 آيدي الطلب', value: requestId, inline: true }
-                ]
-            );
-            return await interaction.reply({ content: '❌ طلب الشرح غير موجود أو انتهت صلاحيته.', ephemeral: true });
-        }
-
-        // إنشاء الروم مباشرة
-        const category = interaction.guild.channels.cache.get(request.categoryId);
-        if (!category) {
-            await sendExplanationLog(
-                "❌ خطأ في قبول الطلب - كاتجوري غير موجود",
-                `حاول ${interaction.user.tag} قبول طلب شرح بكاتجوري غير موجود`,
-                Colors.Red,
-                [
-                    { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
-                    { name: '👤 مقدم الطلب', value: `${request.requester.tag}`, inline: true }
-                ]
-            );
-            return await interaction.reply({ content: '❌ الكاتجوري لم يعد موجوداً!', ephemeral: true });
-        }
-
-        const createdChannel = await createExplanationRoom(
-            interaction, 
-            request.categoryId, 
-            request.roomName, 
-            request.content, 
-            request.requester
-        );
-
-        // إرسال رسالة القبول للمستخدم
-        const acceptEmbed = new EmbedBuilder()
-            .setTitle('✅ تم قبول طلب الشرح' + (isEdited ? ' (مع تعديل)' : ''))
-            .setColor(Colors.Green)
-            .setDescription('تم قبول طلب الشرح الذي قدمته!' + (isEdited ? ' مع بعض التعديلات.' : ''))
-            .addFields(
-                {
-                    name: '📁 الكاتجوري',
-                    value: `📁 ${category.name}`,
-                    inline: true
-                },
-                {
-                    name: '📝 روم الشرح',
-                    value: `${createdChannel}`,
-                    inline: true
-                }
-            )
-            .addFields({
-                name: '🎁 مكافأة',
-                value: process.env.EXPLANATION_ROLE_ID ? 
-                    `تم منحك رول <@&${process.env.EXPLANATION_ROLE_ID}> 🎖️\nشكراً لمساهمتك في نشر المعرفة!` : 
-                    'شكراً لمساهمتك في نشر المعرفة! 🌟',
-                inline: false
-            })
-            .setTimestamp();
-
-        try {
-            await request.requester.send({ embeds: [acceptEmbed] });
-        } catch (dmError) {
-            console.error('❌ فشل إرسال رسالة القبول للخاص:', dmError);
-        }
-
-        // تحديث رسالة الطلب الأصلية
-        const originalEmbed = interaction.message.embeds[0];
-        const approvedEmbed = new EmbedBuilder(originalEmbed)
-            .setColor(Colors.Green)
-            .setTitle('✅ تم قبول طلب الشرح' + (isEdited ? ' (مع تعديل)' : ''))
-            .addFields(
-                {
-                    name: '👨‍💼 تم القبول بواسطة',
-                    value: interaction.user.tag,
-                    inline: true
-                },
-                {
-                    name: '⏰ وقت القبول',
-                    value: `<t:${Math.floor(Date.now() / 1000)}:R>`,
-                    inline: true
-                },
-                {
-                    name: '📝 الروم المنشأ',
-                    value: `${createdChannel}`,
-                    inline: true
-                }
-            );
-
-        // إضافة معلومات التعديل إذا كان هناك تعديل
-        if (isEdited) {
-            approvedEmbed.addFields({
-                name: '✏️ التعديلات',
-                value: `تم تعديل الطلب قبل القبول:\n- الكاتجوري: ${request.originalCategoryId} → ${request.categoryId}\n- اسم الروم: ${request.originalRoomName} → ${request.roomName}`,
-                inline: false
-            });
-        }
-
-        await interaction.message.edit({ 
-            embeds: [approvedEmbed], 
-            components: [] 
-        });
-
-        // إرسال إشعار في الروم المحدد في .env إذا كان موجوداً
-        const notificationChannelId = process.env.EXPLANATION_NOTIFICATION_CHANNEL_ID;
-        if (notificationChannelId) {
-            const notificationChannel = interaction.guild.channels.cache.get(notificationChannelId);
-            if (notificationChannel) {
-                const notificationEmbed = new EmbedBuilder()
-                    .setTitle('📚 تم نشر شرح جديد' + (isEdited ? ' (مع تعديل)' : ''))
-                    .setColor(Colors.Green)
-                    .setDescription(`تم قبول ونشر شرح جديد بواسطة ${request.requester.tag}`)
-                    .addFields(
-                        {
-                            name: '📝 الروم',
-                            value: `${createdChannel}`,
-                            inline: true
-                        },
-                        {
-                            name: '👨‍💼 تمت المراجعة بواسطة',
-                            value: interaction.user.tag,
-                            inline: true
-                        }
-                    )
-                    .setTimestamp();
-
-                await notificationChannel.send({ embeds: [notificationEmbed] });
-            }
-        }
-
-        await sendExplanationLog(
-            "✅ طلب شرح مقبول" + (isEdited ? ' (مع تعديل)' : ''),
-            `تم قبول طلب شرح من ${request.requester.tag} بواسطة ${interaction.user.tag}`,
-            Colors.Green,
-            [
-                { name: '👤 مقدم الطلب', value: `${request.requester.tag}`, inline: true },
-                { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
-                { name: '📝 الروم المنشأ', value: `${createdChannel}`, inline: true },
-                { name: '✏️ التعديلات', value: isEdited ? 'نعم' : 'لا', inline: true }
-            ]
-        );
-
-        if (interaction.replied || interaction.deferred) {
-            await interaction.editReply('✅ تم قبول طلب الشرح بنجاح وإنشاء الروم وإعلام المستخدم.');
-        } else {
-            await interaction.reply({ content: '✅ تم قبول طلب الشرح بنجاح وإنشاء الروم وإعلام المستخدم.', ephemeral: true });
-        }
-
-        // حذف الطلب من التخزين المؤقت
-        explanationRequests.delete(requestId);
-
-    } catch (error) {
-        console.error('❌ خطأ في معالجة قبول الطلب:', error);
-        await sendExplanationLog(
-            "❌ خطأ في قبول طلب الشرح",
-            `حدث خطأ أثناء قبول طلب شرح`,
-            Colors.Red,
-            [
-                { name: '👤 المعالج', value: `${interaction.user.tag}`, inline: true },
-                { name: '📝 الخطأ', value: error.message, inline: true }
-            ]
-        );
-        
-        if (interaction.replied || interaction.deferred) {
-            await interaction.editReply('❌ حدث خطأ أثناء معالجة القبول. يرجى المحاولة مرة أخرى.');
-        } else {
-            await interaction.reply({ content: '❌ حدث خطأ أثناء معالجة القبول. يرجى المحاولة مرة أخرى.', ephemeral: true });
-        }
-    }
-}
 
 // تنظيف الطلبات القديمة تلقائياً كل ساعة
 setInterval(() => {
