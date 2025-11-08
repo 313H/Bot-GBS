@@ -13,14 +13,10 @@ const {
   PermissionFlagsBits,
   ChannelType,
   StringSelectMenuBuilder,
-  Colors,
-  AttachmentBuilder
+  Colors
 } = require("discord.js");
 const express = require("express");
 const fs = require("fs");
-const https = require("https");
-const http = require("http");
-const { URL } = require("url");
 require("dotenv").config();
 
 const app = express();
@@ -30,7 +26,7 @@ setInterval(() => {
   fetch("https://hc-ping.com/96de4fd9-a4d2-4dd4-9bc8-f433807d4dc8")
     .then(() => console.log("✅ Ping sent to Healthchecks"))
     .catch(() => console.log("❌ Ping failed"));
-}, 1000 * 60 * 10);
+}, 1000 * 60 * 10); // كل 10 دقائق
 
 
 /* ================================================================================ */
@@ -158,7 +154,7 @@ function readConfig() {
     BAD_WORDS: ["fuck", "shit", "احا", "كس", "ايري", "ابن كلب", "متخلف"], 
     groups: {} 
   };
-
+  
   try {
     if (!fs.existsSync(configPath)) {
       console.log("⚠️ ملف config.json غير موجود، سيتم إنشاؤه...");
@@ -230,13 +226,13 @@ async function createSettingsMessage(group, channel, client) {
   const members = memberRole ?
     memberRole.members.map(m => m.user.tag).join("\n") : "لا يوجد أعضاء";
   const managers = group.managerIds.map(id => `<@${id}>`).join(", ") || "لا يوجد";
-
+  
   const embed = new EmbedBuilder()
     .setTitle(`⚙️ إعدادات قروب ${group.name}`)
     .setDescription(`**👑 المالك الحالي:** ${owner ? owner.tag : 'غير متوفر'}\n**👮 المدراء:** ${managers}\n\n**القائمة الحالية للأعضاء:**\n\`\`\`\n${members}\n\`\`\``)
     .setColor(memberRole?.color || Colors.Blue)
     .setTimestamp();
-
+  
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`group_add_member_${group.id}`).setLabel("➕ إضافة عضو").setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`group_remove_member_${group.id}`).setLabel("➖ إزالة عضو").setStyle(ButtonStyle.Secondary),
@@ -265,11 +261,11 @@ async function createSettingsMessage(group, channel, client) {
 async function updateSettingsMessage(group, guild, client) {
   const channel = guild.channels.cache.get(group.settingsChannelId);
   if (!channel || !channel.isTextBased()) return;
-
+  
   const owner = await client.users.fetch(group.ownerId).catch(() => null);
   const memberRole = guild.roles.cache.get(group.memberRoleId);
   const managers = group.managerIds.map(id => `<@${id}>`).join(", ") || "لا يوجد";
-
+  
   let membersList = "لا يوجد أعضاء";
   if (memberRole) {
     await guild.members.fetch();
@@ -282,7 +278,7 @@ async function updateSettingsMessage(group, guild, client) {
     .setDescription(`**👑 المالك الحالي:** ${owner ? owner.tag : 'غير متوفر'}\n**👮 المدراء:** ${managers}\n\n**القائمة الحالية للأعضاء:**\n\`\`\`\n${membersList}\n\`\`\``)
     .setColor(memberRole?.color || Colors.Blue)
     .setTimestamp();
-
+  
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`group_add_member_${group.id}`).setLabel("➕ إضافة عضو").setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`group_remove_member_${group.id}`).setLabel("➖ إزالة عضو").setStyle(ButtonStyle.Secondary),
@@ -346,11 +342,11 @@ clientTag.on("messageCreate", async message => {
           const command = args.shift().toLowerCase();
 
           const groupManagerRoleId = process.env.ROLE_GROUP_MANAGER_ID;
-
+          
           if (!message.member) {
               await message.guild.members.fetch(message.author.id).catch(() => null); 
           }
-
+          
           const isGroupManager = message.member && message.member.roles.cache.has(groupManagerRoleId);
 
           if (command === "memberbytsk") {
@@ -358,7 +354,7 @@ clientTag.on("messageCreate", async message => {
                   .setTitle("👤 خدمات القروبات (By TSK)")
                   .setDescription("اختر الخدمة التي تريد القيام بها:")
                   .setColor(Colors.Blue);
-
+              
               const row = new ActionRowBuilder().addComponents(
                   new ButtonBuilder().setCustomId("tsk_join_group_menu").setLabel("➕ تقديم طلب انضمام لقروب").setStyle(ButtonStyle.Success),
                   new ButtonBuilder().setCustomId("tsk_exit_group").setLabel("🚪 الخروج من القروب الحالي").setStyle(ButtonStyle.Danger),
@@ -396,7 +392,7 @@ clientTag.on("messageCreate", async message => {
               const infoEmbed = new EmbedBuilder()
                   .setTitle("📊 معلومات القروبات النشطة")
                   .setColor(Colors.Purple);
-
+              
               for (const [id, group] of Object.entries(groupData)) {
                   const guild = message.guild;
                   const owner = await guild.members.fetch(group.ownerId).catch(() => null);
@@ -518,7 +514,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
           if (groupOptions.length === 0) {
               return interaction.reply({ content: "😔 لا توجد قروبات نشطة حالياً يمكنك الانضمام إليها.", ephemeral: true });
           }
-
+          
           const memberCurrentGroup = Object.entries(config.groups).find(([id, group]) => interaction.member.roles.cache.has(group.memberRoleId));
           if(memberCurrentGroup) {
               return interaction.reply({ content: `🚫 أنت بالفعل عضو في قروب **${memberCurrentGroup[1].name}**. لا يمكنك الانضمام لقروب آخر.`, ephemeral: true });
@@ -528,13 +524,13 @@ clientTag.on(Events.InteractionCreate, async interaction => {
               .setCustomId("tsk_select_group_to_join")
               .setPlaceholder("اختر القروب الذي تريد التقديم عليه...")
               .addOptions(groupOptions);
-
+          
           const row = new ActionRowBuilder().addComponents(selectMenu);
 
           await interaction.reply({ content: "الرجاء اختيار القروب الذي تريد إرسال طلب انضمام إليه:", components: [row], ephemeral: true });
           return;
       }
-
+      
       if (action === "exit" && interaction.customId.endsWith("group")) {
           const member = interaction.member;
           const groupFound = Object.entries(config.groups).find(([id, group]) => member.roles.cache.has(group.memberRoleId));
@@ -558,7 +554,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
                   writeConfig(config);
               }
               await member.roles.remove(memberRole, "خروج من القروب بأمر !tsk");
-
+              
               await updateSettingsMessage(group, interaction.guild, clientTag);
 
               await sendUnifiedLog("🏃‍♂️ خروج عضو من القروب (زر)",
@@ -581,7 +577,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       const member = interaction.member;
 
       if (!group) return interaction.editReply("❌ القروب غير موجود.");
-
+      
       const isAlreadyInGroup = Object.entries(config.groups).some(([id, g]) => member.roles.cache.has(g.memberRoleId));
       if (isAlreadyInGroup) {
           return interaction.editReply("🚫 أنت بالفعل عضو في قروب آخر. لا يمكنك الانضمام.");
@@ -598,7 +594,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
               .setDescription(`**👤 مقدم الطلب:** ${member.toString()} (\`${member.id}\`)\n\n**❓ هل توافق على انضمام هذا العضو؟**`)
               .setColor(Colors.Yellow)
               .setTimestamp();
-
+          
           const row = new ActionRowBuilder().addComponents(
               new ButtonBuilder().setCustomId(`approve_join_${groupId}_${member.id}`).setLabel("✅ قبول").setStyle(ButtonStyle.Success),
               new ButtonBuilder().setCustomId(`reject_join_${groupId}_${member.id}`).setLabel("❌ رفض").setStyle(ButtonStyle.Danger),
@@ -613,17 +609,17 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       }
       return;
   }
-
+  
   if (interaction.isButton() && (interaction.customId.startsWith("approve_join_") || interaction.customId.startsWith("reject_join_"))) {
       await interaction.deferUpdate();
       const parts = interaction.customId.split("_");
       const action = parts[0];
       const groupId = parts[2];
       const memberId = parts[3];
-
+      
       const group = config.groups[groupId];
       if (!group) return interaction.editReply({ content: "❌ هذا القروب غير موجود.", components: [] });
-
+      
       if (!isGroupAdmin(interaction, group)) {
           return interaction.followUp({ content: "🚫 أنت لست مالكاً أو مديراً لهذا القروب لتقبل/ترفض الطلب.", ephemeral: true });
       }
@@ -642,7 +638,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
               if (isAlreadyInGroup) {
                   return interaction.editReply({ content: `🚫 لا يمكن قبول العضو. لقد انضم لقروب آخر في هذه الأثناء.`, components: [] });
               }
-
+              
               await targetMember.roles.add(memberRole, `قبول طلب الانضمام لقروب ${group.name} بواسطة ${interaction.user.tag}`);
 
               const acceptedEmbed = new EmbedBuilder().setTitle("✅ تم قبول طلبك!").setDescription(`تهانينا! تم قبول انضمامك لقروب **${group.name}**.`).setColor(Colors.Green);
@@ -665,7 +661,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       }
       return;
   }
-
+  
   if (interaction.isButton() && interaction.customId.startsWith("group_transfer_owner_")) {
       const groupId = interaction.customId.split("_").pop();
       const group = config.groups[groupId];
@@ -675,7 +671,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       const modal = new ModalBuilder().setCustomId(`modal_transfer_owner_${groupId}`).setTitle(`👑 تحويل ملكية قروب ${group.name}`);
       const newOwnerIdInput = new TextInputBuilder().setCustomId("new_owner_id").setLabel("كوبي آيدي المالك الجديد").setPlaceholder("أدخل آيدي العضو الذي سيصبح المالك الجديد").setStyle(TextInputStyle.Short).setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(newOwnerIdInput));
-
+      
       return interaction.showModal(modal);
   }
 
@@ -687,7 +683,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
       const newOwnerId = interaction.fields.getTextInputValue("new_owner_id").trim();
       const oldOwnerId = group.ownerId;
-
+      
       const newOwnerMember = await interaction.guild.members.fetch(newOwnerId).catch(() => null);
       if (!newOwnerMember) {
           return interaction.editReply("❌ لم يتم العثور على المالك الجديد بهذا الآيدي في السيرفر.");
@@ -718,7 +714,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
           await sendUnifiedLog("👑 تحويل ملكية القروب", 
               `تم تحويل ملكية قروب **${group.name}**.\n**المالك الجديد:** ${newOwnerMember.user.tag} (<@${newOwnerId}>)\n**المالك السابق:** ${oldOwnerMember.user.tag} (<@${oldOwnerId}>) (أصبح عضواً فقط).`,
               Colors.Gold);
-
+          
           const transferEmbed = new EmbedBuilder().setTitle("👑 مبروك! أصبحت مالكاً جديداً").setDescription(`تم تحويل ملكية قروب **${group.name}** إليك بواسطة المالك السابق ${oldOwnerMember.user.tag}.`).setColor(Colors.Gold);
           await newOwnerMember.send({ embeds: [transferEmbed] }).catch(() => console.error(`❌ فشل إرسال رسالة خاصة للمالك الجديد`));
 
@@ -806,7 +802,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
                 },
             ],
         });
-
+        
         const newGroupId = Date.now().toString(36);
         const newGroup = {
             id: newGroupId,
@@ -896,7 +892,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
         writeConfig(config);
         await createSettingsMessage(newGroup, settingsChannel, clientTag);
-
+        
         await sendUnifiedLog("➕ إنشاء قروب جديد", `تم إنشاء قروب **${groupName}** بنجاح بواسطة ${interaction.user.tag}.\n**المالك:** ${groupOwner.user.tag} (<@${ownerId}>)`, Colors.Green);
 
         await interaction.editReply(`✅ تم إنشاء قروب **${groupName}** بنجاح!`);
@@ -922,7 +918,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
           new ActionRowBuilder().addComponents(channelIdInput),
           new ActionRowBuilder().addComponents(newChannelNameInput)
       );
-
+      
       return interaction.showModal(modal);
   }
 
@@ -952,11 +948,11 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       try {
           const oldName = channel.name;
           await channel.setName(newChannelName, `تغيير اسم الروم بواسطة ${interaction.user.tag}`);
-
+          
           await sendUnifiedLog("✏️ تغيير اسم روم", 
               `تم تغيير اسم القناة في قروب **${group.name}**\n**من:** ${oldName}\n**إلى:** ${newChannelName}\n**بواسطة:** ${interaction.user.tag}`,
               Colors.Blue);
-
+          
           return interaction.editReply(`✅ تم تغيير اسم القناة من **${oldName}** إلى **${newChannelName}** بنجاح.`);
 
       } catch (error) {
@@ -975,7 +971,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       const textChannelsInput = new TextInputBuilder().setCustomId("text_channels_count").setLabel("عدد قنوات الدردشة الكتابية الجديدة").setPlaceholder("مثال: 2").setStyle(TextInputStyle.Short).setRequired(false);
       const voiceChannelsInput = new TextInputBuilder().setCustomId("voice_channels_count").setLabel("عدد قنوات الدردشة الصوتية الجديدة").setPlaceholder("مثال: 1").setStyle(TextInputStyle.Short).setRequired(false);
       modal.addComponents(new ActionRowBuilder().addComponents(textChannelsInput), new ActionRowBuilder().addComponents(voiceChannelsInput));
-
+      
       return interaction.showModal(modal);
   }
 
@@ -1033,7 +1029,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
           await sendUnifiedLog("🛠️ إضافة قنوات للقروب", 
               `تم إضافة **${addedChannels}** قناة جديدة لقروب **${group.name}** بواسطة ${interaction.user.tag}.`,
               Colors.Blue);
-
+          
           await interaction.editReply(`✅ تم إضافة ${addedChannels} قناة جديدة لقروب **${group.name}** بنجاح. (${textChannelsCount} كتابية، ${voiceChannelsCount} صوتية).`);
 
       } catch (error) {
@@ -1052,7 +1048,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       const modal = new ModalBuilder().setCustomId(`modal_delete_channels_${groupId}`).setTitle(`✂️ حذف قنوات قروب ${group.name}`);
       const channelIdsInput = new TextInputBuilder().setCustomId("channel_ids").setLabel("أدخل آيديات القنوات المراد حذفها").setPlaceholder("آيديات مفصولة بمسافة أو فاصلة (مثال: 123 456, 789)").setStyle(TextInputStyle.Paragraph).setRequired(true);
       modal.addComponents(new ActionRowBuilder().addComponents(channelIdsInput));
-
+      
       return interaction.showModal(modal);
   }
 
@@ -1101,7 +1097,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       if (deletedCount > 0) replyMessage += `☑️ تم حذف **${deletedCount}** قناة بنجاح.\n`;
       if (notFoundCount > 0) replyMessage += `⚠️ تم تجاهل **${notFoundCount}** آيدي قناة غير موجود.\n`;
       if (failedDeletions.length > 0) replyMessage += `❌ فشل حذف القنوات التالية: ${failedDeletions.join(", ")}\n`;
-
+      
       await sendUnifiedLog("✂️ حذف قنوات من القروب", 
           `قام ${interaction.user.tag} بحذف قنوات من قروب **${group.name}**.\n**المحذوف:** ${deletedCount}\n**الفاشل/المتجاهل:** ${notFoundCount + failedDeletions.length}`,
           deletedCount > 0 ? Colors.Orange : Colors.Red);
@@ -1109,7 +1105,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       await interaction.editReply(replyMessage);
       return;
   }
-
+  
   if (interaction.isButton() && interaction.customId.startsWith("group_change_name_")) {
     const groupId = interaction.customId.split("_").pop();
     const group = config.groups[groupId];
@@ -1145,16 +1141,16 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       if (ownerRole) await ownerRole.setName(`${newName} | Owner`);
       if (category) await category.setName(newName);
       if (settingsChannel) await settingsChannel.setName(`⚙️-${newName}-settings`);
-
+      
       group.name = newName;
       writeConfig(config);
 
       await updateSettingsMessage(group, interaction.guild, clientTag);
-
+      
       await sendUnifiedLog("📝 تغيير اسم القروب", 
           `تم تغيير اسم قروب **${oldName}** إلى **${newName}** بواسطة ${interaction.user.tag}.`,
           Colors.Blue);
-
+      
       return interaction.editReply(`✅ تم تغيير اسم القروب من **${oldName}** إلى **${newName}** بنجاح.`);
 
     } catch (error) {
@@ -1190,10 +1186,10 @@ clientTag.on(Events.InteractionCreate, async interaction => {
     try {
       const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
       const ownerRole = interaction.guild.roles.cache.get(group.ownerRoleId);
-
+      
       if (memberRole) await memberRole.setColor(newColor);
       if (ownerRole) await ownerRole.setColor(newColor);
-
+      
       await updateSettingsMessage(group, interaction.guild, clientTag);
 
       await sendUnifiedLog("🎨 تغيير لون رتب القروب", 
@@ -1217,7 +1213,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
     await interaction.deferUpdate();
     const embed = interaction.message.embeds[0];
     const newEmbed = new EmbedBuilder(embed).setDescription(embed.description + "\n\n⚠️ **تأكيد الحذف النهائي:** هذا الإجراء لا يمكن التراجع عنه وسيحذف جميع قنوات ورتب القروب. اضغط على الزر أدناه للتأكيد النهائي.");
-
+    
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`group_confirm_delete_${groupId}`).setLabel("🔥 تأكيد حذف القروب نهائياً").setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId(`group_cancel_delete_${groupId}`).setLabel("❌ إلغاء").setStyle(ButtonStyle.Secondary),
@@ -1250,7 +1246,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
         const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
         const ownerRole = interaction.guild.roles.cache.get(group.ownerRoleId);
         const category = interaction.guild.channels.cache.get(group.categoryId);
-
+        
         const channelsToDelete = [...group.channelIds, group.settingsChannelId].map(id => interaction.guild.channels.cache.get(id)).filter(c => c);
 
         for (const channel of channelsToDelete) {
@@ -1259,7 +1255,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
         if (category) await category.delete(`حذف قروب ${group.name} بطلب من المالك`).catch(err => console.error("خطأ في حذف الكاتيجوري:", err));
         if (memberRole) await memberRole.delete(`حذف قروب ${group.name} بطلب من المالك`).catch(err => console.error("خطأ في حذف رتبة الأعضاء:", err));
         if (ownerRole) await ownerRole.delete(`حذف قروب ${group.name} بطلب من المالك`).catch(err => console.error("خطأ في حذف رتبة المالك:", err));
-
+        
         delete config.groups[groupId];
         writeConfig(config);
 
@@ -1293,12 +1289,12 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       if (groupOptions.length === 0) {
           return interaction.reply({ content: "😔 لا توجد قروبات نشطة لحذفها.", ephemeral: true });
       }
-
+      
       const selectMenu = new StringSelectMenuBuilder()
           .setCustomId("admin_select_group_to_delete")
           .setPlaceholder("اختر القروب الذي تريد حذفه إدارياً...")
           .addOptions(groupOptions);
-
+      
       const row1 = new ActionRowBuilder().addComponents(selectMenu);
       const row2 = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId("admin_delete_all_groups").setLabel("🔥 حذف كل القروبات").setStyle(ButtonStyle.Danger)
@@ -1312,7 +1308,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       await interaction.deferUpdate();
       const groupId = interaction.values[0];
       const group = config.groups[groupId];
-
+      
       if (!group) return interaction.followUp({ content: "❌ هذا القروب غير موجود.", ephemeral: true });
 
       const embed = new EmbedBuilder()
@@ -1320,7 +1316,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
           .setDescription(`**هل أنت متأكد من حذف قروب **${group.name}**؟**\nهذا الإجراء سيحذف جميع القنوات والرتب المرتبطة به.`)
           .setColor(Colors.Red)
           .setTimestamp();
-
+      
       const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`admin_confirm_delete_${groupId}`).setLabel("✅ تأكيد الحذف").setStyle(ButtonStyle.Danger),
           new ButtonBuilder().setCustomId(`admin_cancel_operation`).setLabel("❌ إلغاء").setStyle(ButtonStyle.Secondary)
@@ -1334,14 +1330,14 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       await interaction.deferUpdate();
       const groupId = interaction.customId.split("_").pop();
       const group = config.groups[groupId];
-
+      
       if (!group) return interaction.editReply({ content: "❌ هذا القروب غير موجود.", components: [] });
 
       try {
         const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
         const ownerRole = interaction.guild.roles.cache.get(group.ownerRoleId);
         const category = interaction.guild.channels.cache.get(group.categoryId);
-
+        
         const channelsToDelete = [...group.channelIds, group.settingsChannelId].map(id => interaction.guild.channels.cache.get(id)).filter(c => c);
 
         for (const channel of channelsToDelete) {
@@ -1353,7 +1349,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
         delete config.groups[groupId];
         writeConfig(config);
-
+        
         const owner = await clientTag.users.fetch(group.ownerId).catch(() => null);
         if (owner) {
             const embed = new EmbedBuilder().setTitle("🗑️ تم حذف القروب").setDescription(`تم حذف قروب **${group.name}** الذي تملكه بقرار إداري من **${interaction.user.tag}**.`).setColor(Colors.Red);
@@ -1364,7 +1360,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
             .setTitle(`✅ تم الحذف النهائي لقروب ${group.name}`)
             .setDescription(`تم حذف القروب بالكامل بنجاح.\n**المالك الأصلي:** <@${group.ownerId}>\n**المنفذ (الإدارة):** ${interaction.user.tag}`)
             .setColor(Colors.DarkRed);
-
+        
         await interaction.message.edit({ embeds: [logEmbed], components: [] });
 
     } catch (error) {
@@ -1387,13 +1383,13 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       if (groupIds.length === 0) {
           return interaction.followUp({ content: "😔 لا توجد قروبات نشطة لحذفها.", ephemeral: true });
       }
-
+      
       const embed = new EmbedBuilder()
           .setTitle(`⚠️ تأكيد الحذف الإداري لجميع القروبات (${groupIds.length})`)
           .setDescription(`**هل أنت متأكد من حذف **كل** القروبات؟**\nهذا الإجراء لا يمكن التراجع عنه وسيحذف جميع القنوات والرتب المرتبطة بها.`)
           .setColor(Colors.Red)
           .setTimestamp();
-
+      
       const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`admin_confirm_delete_all`).setLabel("🔥🔥 تأكيد حذف كل القروبات").setStyle(ButtonStyle.Danger),
           new ButtonBuilder().setCustomId(`admin_cancel_operation`).setLabel("❌ إلغاء").setStyle(ButtonStyle.Secondary)
@@ -1407,16 +1403,16 @@ clientTag.on(Events.InteractionCreate, async interaction => {
     await interaction.deferUpdate();
     const groupIds = Object.keys(config.groups);
     let deletedCount = 0;
-
+    
     for (const groupId of groupIds) {
         const group = config.groups[groupId];
         if (!group) continue;
-
+        
         try {
             const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
             const ownerRole = interaction.guild.roles.cache.get(group.ownerRoleId);
             const category = interaction.guild.channels.cache.get(group.categoryId);
-
+            
             const channelsToDelete = [...group.channelIds, group.settingsChannelId].map(id => interaction.guild.channels.cache.get(id)).filter(c => c);
 
             for (const channel of channelsToDelete) {
@@ -1431,7 +1427,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
                 const embed = new EmbedBuilder().setTitle("🗑️ تم حذف القروب").setDescription(`تم حذف قروب **${group.name}** الذي تملكه بقرار إداري جماعي من **${interaction.user.tag}**.`).setColor(Colors.Red);
                 await owner.send({ embeds: [embed] }).catch(() => console.error(`❌ فشل إرسال إشعار الحذف للمالك`));
             }
-
+            
             delete config.groups[groupId];
             deletedCount++;
 
@@ -1446,7 +1442,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
         .setTitle(`✅ تم الحذف النهائي لجميع القروبات`)
         .setDescription(`تم حذف **${deletedCount}** قروب بالكامل بنجاح.\n**المنفذ (الإدارة):** ${interaction.user.tag}`)
         .setColor(Colors.DarkRed);
-
+    
     await interaction.message.edit({ embeds: [logEmbed], components: [] });
 
     await interaction.followUp({ content: `✅ تم حذف **${deletedCount}** قروب بالكامل بنجاح.`, ephemeral: true });
@@ -1464,7 +1460,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
       const infoEmbed = new EmbedBuilder()
           .setTitle("📊 معلومات القروبات النشطة")
           .setColor(Colors.Purple);
-
+      
       for (const [id, group] of Object.entries(groupData)) {
           const guild = interaction.guild;
           const owner = await guild.members.fetch(group.ownerId).catch(() => null);
@@ -1515,9 +1511,9 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
       const memberId = interaction.fields.getTextInputValue("member_id").trim();
       const targetMember = await interaction.guild.members.fetch(memberId).catch(() => null);
-
+      
       if (!targetMember) return interaction.editReply("❌ لم يتم العثور على العضو بهذا الآيدي.");
-
+      
       const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
       if (!memberRole) return interaction.editReply("❌ رتبة القروب غير موجودة.");
 
@@ -1557,9 +1553,9 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
       const memberId = interaction.fields.getTextInputValue("member_id").trim();
       const targetMember = await interaction.guild.members.fetch(memberId).catch(() => null);
-
+      
       if (!targetMember) return interaction.editReply("❌ لم يتم العثور على العضو بهذا الآيدي.");
-
+      
       if (memberId === group.ownerId) return interaction.editReply("🚫 لا يمكن إزالة المالك.");
 
       const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
@@ -1571,7 +1567,7 @@ clientTag.on(Events.InteractionCreate, async interaction => {
               group.managerIds = group.managerIds.filter(id => id !== memberId);
               writeConfig(config);
           }
-
+          
           await targetMember.roles.remove(memberRole, `إزالة عضو بواسطة ${interaction.user.tag}`);
           await updateSettingsMessage(group, interaction.guild, clientTag);
           await sendUnifiedLog("➖ إزالة عضو من القروب", `تم إزالة ${targetMember.user.tag} من قروب **${group.name}** بواسطة ${interaction.user.tag}.`, Colors.Orange);
@@ -1603,9 +1599,9 @@ clientTag.on(Events.InteractionCreate, async interaction => {
 
       const managerId = interaction.fields.getTextInputValue("manager_id").trim();
       const targetMember = await interaction.guild.members.fetch(managerId).catch(() => null);
-
+      
       if (!targetMember) return interaction.editReply("❌ لم يتم العثور على العضو بهذا الآيدي.");
-
+      
       const memberRole = interaction.guild.roles.cache.get(group.memberRoleId);
       const ownerRole = interaction.guild.roles.cache.get(group.ownerRoleId);
 
@@ -2549,552 +2545,5 @@ setInterval(() => {
 }, 60 * 60 * 1000); // كل ساعة
 
 console.log('✅ نظام طلبات الشرح (Explanation Requests) - النسخة المعدلة والمطورة تم تحميلها بنجاح!');
-
-/* ================================================================================ */
-/* 🎬 نظام تحميل المقاطع من جميع المنصات */
-/* ================================================================================ */
-
-const downloadCooldown = new Map();
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit for Discord
-
-// دالة للتحقق من نوع الرابط
-function detectPlatform(url) {
-  if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
-    return 'youtube';
-  } else if (url.includes('instagram.com/') || url.includes('instagr.am/')) {
-    return 'instagram';
-  } else if (url.includes('tiktok.com/') || url.includes('vm.tiktok.com/') || url.includes('vt.tiktok.com/')) {
-    return 'tiktok';
-  } else if (url.includes('twitter.com/') || url.includes('x.com/')) {
-    return 'twitter';
-  } else if (url.includes('facebook.com/') || url.includes('fb.watch/')) {
-    return 'facebook';
-  } else {
-    return 'unknown';
-  }
-}
-
-// دالة للتحقق من الكويداون
-function checkCooldown(userId) {
-  const now = Date.now();
-  const cooldownTime = 30 * 1000; // 30 ثانية كويداون
-
-  if (downloadCooldown.has(userId)) {
-    const lastDownload = downloadCooldown.get(userId);
-    if (now - lastDownload < cooldownTime) {
-      return Math.ceil((cooldownTime - (now - lastDownload)) / 1000);
-    }
-  }
-
-  downloadCooldown.set(userId, now);
-  return 0;
-}
-
-// دالة تحميل من يوتيوب
-async function downloadYouTube(url, quality = 'highest') {
-  try {
-    // التحقق من صحة الرابط
-    if (!ytdl.validateURL(url)) {
-      throw new Error('رابط يوتيوب غير صحيح');
-    }
-
-    const info = await ytdl.getInfo(url);
-    const videoDetails = info.videoDetails;
-
-    // البحث عن أفضل جودة متاحة ضمن الحد المسموح
-    let format = ytdl.chooseFormat(info.formats, {
-      quality: quality === 'highest' ? 'highest' : 'lowest',
-      filter: format => {
-        // استبعاد التنسيقات التي تجمع الصوت والفيديو معاً إذا كانت كبيرة الحجم
-        if (format.hasVideo && format.hasAudio) {
-          return format.contentLength && format.contentLength < MAX_FILE_SIZE;
-        }
-        return format.hasVideo && !format.hasAudio && format.contentLength && format.contentLength < MAX_FILE_SIZE;
-      }
-    });
-
-    // إذا لم نجد تنسيق مناسب، نبحث عن أقل جودة
-    if (!format) {
-      format = ytdl.chooseFormat(info.formats, {
-        quality: 'lowest',
-        filter: 'videoonly'
-      });
-    }
-
-    if (!format) {
-      throw new Error('لم يتم العثور على تنسيق مناسب ضمن الحد المسموح (25MB)');
-    }
-
-    return {
-      success: true,
-      title: videoDetails.title,
-      duration: videoDetails.lengthSeconds,
-      thumbnail: videoDetails.thumbnails[0]?.url,
-      format: format,
-      url: url
-    };
-  } catch (error) {
-    console.error('YouTube download error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// دالة تحميل من انستجرام
-async function downloadInstagram(url) {
-  try {
-    const result = await Insta(url);
-
-    if (result && result.result && result.result.length > 0) {
-      const media = result.result[0];
-      return {
-        success: true,
-        url: media.url,
-        type: media.type,
-        thumbnail: media.thumbnail
-      };
-    } else {
-      throw new Error('لم يتم العثور على محتوى في الرابط');
-    }
-  } catch (error) {
-    console.error('Instagram download error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// دالة تحميل من تيك توك
-async function downloadTikTok(url) {
-  try {
-    const result = await TikTokDL(url);
-
-    if (result && result.result) {
-      const video = result.result;
-      return {
-        success: true,
-        url: video.video,
-        title: video.description || 'فيديو تيك توك',
-        duration: video.duration,
-        thumbnail: video.cover
-      };
-    } else {
-      throw new Error('لم يتم العثور على فيديو في الرابط');
-    }
-  } catch (error) {
-    console.error('TikTok download error:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// دالة البحث في يوتيوب
-async function searchYouTube(query) {
-  try {
-    const searchResult = await yts(query);
-    return searchResult.videos.slice(0, 5); // أول 5 نتائج
-  } catch (error) {
-    console.error('YouTube search error:', error);
-    return [];
-  }
-}
-
-// دالة تنزيل الملف وإرساله
-async function downloadAndSend(interaction, downloadResult, platform) {
-  try {
-    await interaction.deferReply();
-
-    let fileBuffer;
-    let fileName;
-    let embed;
-
-    switch (platform) {
-      case 'youtube':
-        const videoStream = ytdl.downloadFromInfo(downloadResult.info, { format: downloadResult.format });
-        const chunks = [];
-
-        for await (const chunk of videoStream) {
-          chunks.push(chunk);
-        }
-
-        fileBuffer = Buffer.concat(chunks);
-        fileName = `youtube_${Date.now()}.mp4`;
-
-        embed = new EmbedBuilder()
-          .setTitle('🎬 تم تحميل الفيديو من يوتيوب')
-          .setDescription(`**${downloadResult.title}**`)
-          .setColor(Colors.Red)
-          .addFields(
-            { name: '⏰ المدة', value: `${Math.round(downloadResult.duration / 60)} دقيقة`, inline: true },
-            { name: '📊 الجودة', value: downloadResult.format.qualityLabel || 'غير معروفة', inline: true }
-          )
-          .setThumbnail(downloadResult.thumbnail)
-          .setFooter({ text: 'By TSK - نظام التحميل' });
-        break;
-
-      case 'instagram':
-        const instaResponse = await fetch(downloadResult.url);
-        fileBuffer = Buffer.from(await instaResponse.arrayBuffer());
-        fileName = `instagram_${Date.now()}.${downloadResult.type === 'image' ? 'jpg' : 'mp4'}`;
-
-        embed = new EmbedBuilder()
-          .setTitle('📷 تم تحميل المحتوى من انستجرام')
-          .setColor(Colors.Purple)
-          .setFooter({ text: 'By TSK - نظام التحميل' });
-        break;
-
-      case 'tiktok':
-        const tiktokResponse = await fetch(downloadResult.url);
-        fileBuffer = Buffer.from(await tiktokResponse.arrayBuffer());
-        fileName = `tiktok_${Date.now()}.mp4`;
-
-        embed = new EmbedBuilder()
-          .setTitle('🎵 تم تحميل الفيديو من تيك توك')
-          .setDescription(`**${downloadResult.title}**`)
-          .setColor(Colors.Blue)
-          .setFooter({ text: 'By TSK - نظام التحميل' });
-        break;
-    }
-
-    // التحقق من حجم الملف
-    if (fileBuffer.length > MAX_FILE_SIZE) {
-      throw new Error(`حجم الملف كبير جداً (${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB). الحد الأقصى هو 25MB.`);
-    }
-
-    const attachment = new AttachmentBuilder(fileBuffer, { name: fileName });
-
-    await interaction.editReply({
-      embeds: [embed],
-      files: [attachment]
-    });
-
-    // إرسال إشعار في اللوق
-    if (logWebhook) {
-      const logEmbed = new EmbedBuilder()
-        .setTitle('📥 تحميل مقطع جديد')
-        .setColor(Colors.Green)
-        .addFields(
-          { name: '👤 المستخدم', value: `${interaction.user.tag} (${interaction.user.id})`, inline: true },
-          { name: '📱 المنصة', value: platform, inline: true },
-          { name: '📊 الحجم', value: `${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB`, inline: true }
-        )
-        .setTimestamp();
-
-      await logWebhook.send({ embeds: [logEmbed] });
-    }
-
-  } catch (error) {
-    console.error('Download and send error:', error);
-    await interaction.editReply({
-      content: `❌ فشل في تحميل الملف: ${error.message}`,
-      ephemeral: true
-    });
-  }
-}
-
-// ================================================================================
-// 🎬 تفعيل نظام التحميل في البوت
-// ================================================================================
-
-clientTag.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.guild) return;
-
-  // أمر تشغيل نظام التحميل
-  if (message.content === '!download' || message.content === '!تحميل') {
-    const embed = new EmbedBuilder()
-      .setTitle('🎬 نظام تحميل المقاطع - By TSK')
-      .setDescription('**يمكنني تحميل المقاطع من المنصات التالية:**\n\n📹 **يوتيوب** - فيديوهات وShorts\n📷 **انستجرام** - صور وفيديوهات وريلز\n🎵 **تيك توك** - جميع فيديوهات التيك توك\n🐦 **تويتر/X** - فيديوهات التويتر\n📘 **فيسبوك** - فيديوهات الفيسبوك\n\n**استخدم الأزرار أدناه للبدأ:**')
-      .setColor(Colors.Blue)
-      .addFields(
-        {
-          name: '⚡ المميزات',
-          value: '• تحميل بجودة عالية\n• دعم جميع المنصات\n• واجهة سهلة الاستخدام\n• تحميل سريع وآمن'
-        },
-        {
-          name: '📝 كيفية الاستخدام',
-          value: '1. اختر نوع التحميل\n2. الصق رابط المقطع\n3. انتظر حتى اكتمال التحميل\n4. استمتع بالمقطع!'
-        }
-      )
-      .setFooter({ text: 'مطور النظام: TSK | الحد الأقصى لحجم الملف: 25MB' });
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('download_video')
-        .setLabel('📥 تحميل فيديو')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId('download_audio')
-        .setLabel('🎵 تحميل صوت فقط')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('youtube_search')
-        .setLabel('🔍 بحث في يوتيوب')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    await message.reply({ embeds: [embed], components: [row] });
-  }
-});
-
-// معالجة تفاعلات نظام التحميل
-clientTag.on(Events.InteractionCreate, async (interaction) => {
-  // زر تحميل فيديو
-  if (interaction.isButton() && interaction.customId === 'download_video') {
-    const cooldownLeft = checkCooldown(interaction.user.id);
-    if (cooldownLeft > 0) {
-      return interaction.reply({
-        content: `⏳ يرجى الانتظار ${cooldownLeft} ثانية قبل استخدام التحميل مرة أخرى.`,
-        ephemeral: true
-      });
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId('modal_download_video')
-      .setTitle('📥 تحميل فيديو من أي منصة');
-
-    const urlInput = new TextInputBuilder()
-      .setCustomId('video_url')
-      .setLabel('الصق رابط الفيديو هنا')
-      .setPlaceholder('https://youtube.com/... أو https://instagram.com/... إلخ')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(urlInput));
-    await interaction.showModal(modal);
-  }
-
-  // زر تحميل صوت
-  if (interaction.isButton() && interaction.customId === 'download_audio') {
-    const cooldownLeft = checkCooldown(interaction.user.id);
-    if (cooldownLeft > 0) {
-      return interaction.reply({
-        content: `⏳ يرجى الانتظار ${cooldownLeft} ثانية قبل استخدام التحميل مرة أخرى.`,
-        ephemeral: true
-      });
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId('modal_download_audio')
-      .setTitle('🎵 تحميل الصوت فقط');
-
-    const urlInput = new TextInputBuilder()
-      .setCustomId('audio_url')
-      .setLabel('الصق رابط الفيديو (يدعم يوتيوب فقط)')
-      .setPlaceholder('https://youtube.com/...')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(urlInput));
-    await interaction.showModal(modal);
-  }
-
-  // زر بحث يوتيوب
-  if (interaction.isButton() && interaction.customId === 'youtube_search') {
-    const modal = new ModalBuilder()
-      .setCustomId('modal_youtube_search')
-      .setTitle('🔍 بحث في يوتيوب');
-
-    const searchInput = new TextInputBuilder()
-      .setCustomId('search_query')
-      .setLabel('اكتب ما تريد البحث عنه')
-      .setPlaceholder('أغاني, برامج, دروس, إلخ...')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(new ActionRowBuilder().addComponents(searchInput));
-    await interaction.showModal(modal);
-  }
-
-  // معالجة تحميل الفيديو
-  if (interaction.isModalSubmit() && interaction.customId === 'modal_download_video') {
-    const url = interaction.fields.getTextInputValue('video_url');
-    const platform = detectPlatform(url);
-
-    await interaction.deferReply();
-
-    // التحقق من الكويداون مرة أخرى
-    const cooldownLeft = checkCooldown(interaction.user.id);
-    if (cooldownLeft > 0) {
-      return interaction.editReply({
-        content: `⏳ يرجى الانتظار ${cooldownLeft} ثانية قبل استخدام التحميل مرة أخرى.`,
-        ephemeral: true
-      });
-    }
-
-    let downloadResult;
-
-    switch (platform) {
-      case 'youtube':
-        downloadResult = await downloadYouTube(url, 'highest');
-        break;
-      case 'instagram':
-        downloadResult = await downloadInstagram(url);
-        break;
-      case 'tiktok':
-        downloadResult = await downloadTikTok(url);
-        break;
-      default:
-        return interaction.editReply({
-          content: '❌ الرابط غير مدعوم أو غير صحيح. المنصات المدعومة: يوتيوب، انستجرام، تيك توك.',
-          ephemeral: true
-        });
-    }
-
-    if (!downloadResult.success) {
-      return interaction.editReply({
-        content: `❌ فشل في تحميل المقطع: ${downloadResult.error}`,
-        ephemeral: true
-      });
-    }
-
-    await downloadAndSend(interaction, downloadResult, platform);
-  }
-
-  // معالجة تحميل الصوت
-  if (interaction.isModalSubmit() && interaction.customId === 'modal_download_audio') {
-    const url = interaction.fields.getTextInputValue('audio_url');
-
-    if (!detectPlatform(url).includes('youtube')) {
-      return interaction.reply({
-        content: '❌ تحميل الصوت مدعوم فقط من يوتيوب حالياً.',
-        ephemeral: true
-      });
-    }
-
-    await interaction.deferReply();
-
-    try {
-      const info = await ytdl.getInfo(url);
-      const audioFormat = ytdl.chooseFormat(info.formats, {
-        quality: 'highestaudio',
-        filter: 'audioonly'
-      });
-
-      if (!audioFormat) {
-        throw new Error('لم يتم العثور على تنسيق صوت مناسب');
-      }
-
-      const audioStream = ytdl.downloadFromInfo(info, { format: audioFormat });
-      const chunks = [];
-
-      for await (const chunk of audioStream) {
-        chunks.push(chunk);
-      }
-
-      const audioBuffer = Buffer.concat(chunks);
-      const fileName = `audio_${Date.now()}.mp3`;
-
-      if (audioBuffer.length > MAX_FILE_SIZE) {
-        throw new Error(`حجم الملف كبير جداً (${(audioBuffer.length / 1024 / 1024).toFixed(2)}MB). الحد الأقصى هو 25MB.`);
-      }
-
-      const attachment = new AttachmentBuilder(audioBuffer, { name: fileName });
-
-      const embed = new EmbedBuilder()
-        .setTitle('🎵 تم تحميل الصوت')
-        .setDescription(`**${info.videoDetails.title}**`)
-        .setColor(Colors.Green)
-        .addFields(
-          { name: '⏰ المدة', value: `${Math.round(info.videoDetails.lengthSeconds / 60)} دقيقة`, inline: true },
-          { name: '📊 الجودة', value: audioFormat.audioBitrate ? `${audioFormat.audioBitrate} kbps` : 'غير معروفة', inline: true }
-        )
-        .setThumbnail(info.videoDetails.thumbnails[0]?.url)
-        .setFooter({ text: 'By TSK - نظام التحميل' });
-
-      await interaction.editReply({
-        embeds: [embed],
-        files: [attachment]
-      });
-
-    } catch (error) {
-      console.error('Audio download error:', error);
-      await interaction.editReply({
-        content: `❌ فشل في تحميل الصوت: ${error.message}`,
-        ephemeral: true
-      });
-    }
-  }
-
-  // معالجة بحث يوتيوب
-  if (interaction.isModalSubmit() && interaction.customId === 'modal_youtube_search') {
-    const query = interaction.fields.getTextInputValue('search_query');
-
-    await interaction.deferReply();
-
-    try {
-      const results = await searchYouTube(query);
-
-      if (results.length === 0) {
-        return interaction.editReply({
-          content: '❌ لم يتم العثور على نتائج للبحث المطلوب.',
-          ephemeral: true
-        });
-      }
-
-      const embed = new EmbedBuilder()
-        .setTitle(`🔍 نتائج البحث عن: "${query}"`)
-        .setColor(Colors.Red)
-        .setFooter({ text: 'اختر الفيديو الذي تريد تحميله' });
-
-      const options = results.map((video, index) => ({
-        label: video.title.length > 45 ? video.title.substring(0, 45) + '...' : video.title,
-        description: `المدة: ${video.duration.timestamp || 'غير معروفة'} | ${video.views} مشاهدة`,
-        value: video.url
-      }));
-
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('select_youtube_video')
-        .setPlaceholder('اختر الفيديو الذي تريد تحميله...')
-        .addOptions(options);
-
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      await interaction.editReply({
-        embeds: [embed],
-        components: [row]
-      });
-
-    } catch (error) {
-      console.error('YouTube search error:', error);
-      await interaction.editReply({
-        content: '❌ حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.',
-        ephemeral: true
-      });
-    }
-  }
-
-  // معالجة اختيار فيديو من البحث
-  if (interaction.isStringSelectMenu() && interaction.customId === 'select_youtube_video') {
-    const videoUrl = interaction.values[0];
-
-    await interaction.deferReply();
-
-    const cooldownLeft = checkCooldown(interaction.user.id);
-    if (cooldownLeft > 0) {
-      return interaction.editReply({
-        content: `⏳ يرجى الانتظار ${cooldownLeft} ثانية قبل استخدام التحميل مرة أخرى.`,
-        ephemeral: true
-      });
-    }
-
-    const downloadResult = await downloadYouTube(videoUrl, 'highest');
-
-    if (!downloadResult.success) {
-      return interaction.editReply({
-        content: `❌ فشل في تحميل المقطع: ${downloadResult.error}`,
-        ephemeral: true
-      });
-    }
-
-    await downloadAndSend(interaction, downloadResult, 'youtube');
-  }
-});
-
-console.log('✅ نظام تحميل المقاطع من جميع المنصات تم تحميله بنجاح!');
 
 clientTag.login(process.env.TOKEN_ZAGLGROUPBOT);
